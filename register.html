@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js"></script>
+  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+  <script type="text/javascript" src="https://cdn.iamport.kr/js/iamport.payment-1.2.0.js"></script>
+
+  <title>Document</title>
+
+</head>
+<body>
+  
+  <!-- <%- include('nav.html') %> -->
+
+  <h4 class="container mt-4" style="text-align: center;"><strong>회원가입</strong></h4>
+
+  <div class="container mt-3" style="width:40%;">
+    <form action="/register" method="POST">
+      <div class="form-group">
+        <label>아이디</label>
+        <input type="text" class="form-control" name="id" id="id">
+        <small style="color:gray;">* 아이디는 6자 이상, 20자 미만, 아이디 첫자는 영문자 구성, 영문자/숫자 조합만 가능합니다.</small>
+        <!-- <button type="button" class="btn btn-primary" id="idck">중복체크</button> -->
+      </div>
+      <div class="form-group">
+        <label>비밀번호</label>
+        <input type="text" class="form-control" name="pw" id="pw">
+        
+        <small style="color:gray;">* 비밀번호는 8~20자로 영문 대소문자, 숫자, 특수문자(!@#$%^&*+=-)를 모두 사용하여 구성하세요.<br>
+          * 공백 및 4자리 이상 동일한 문자는 사용할 수 없습니다.</small>
+        <p id="pw_error"></p>
+      </div>
+      <div class="form-group">
+        <label st>비밀번호 재확인</label>
+        <input type="text" class="form-control" id="pwck" name="pwck">
+        <p id="message_pwck"></p>
+      </div>
+      <div class="form-group">
+        <label>이름</label>
+        <input type="text" class="form-control" id="name" name="name">
+      </div>
+      <div>
+        <label>성별</label>
+        <div>
+          <colspan="2">
+            <label class="btn btn-prinmary active">
+              <input type="radio" name="userGender" autocomplete="off" value="남자" checked>남자
+            </label>
+            <label class="btn btn-prinmary active">
+              <input type="radio" name="userGender" autocomplete="off" value="여자" checked>여자
+            </label>
+        </div>
+      </div>
+      <div>
+        <label>임시</label>
+        <input type="text" class="form-control">
+      </div>
+      <div>
+        <label id="idfy">본인인증 하기</label>
+      </div>
+      <div>
+        <input type="hidden" class="form-control" id="phone" name="phone">
+      </div>
+      <button type="submit" class="btn btn-primary" style="margin-top:15px;" id="submit">Submit</button>
+    </form>
+  </div>
+
+
+  <script type="text/javascript">
+
+
+    //아이디 체크여부 확인
+    var idck = 0;
+    var idfy = 0;
+    var pwsc = 0;
+    var id =  $("#id").val();
+    var checkId = 0;
+    $(function() {
+
+      //idck 버튼을 클릭했을 때 
+      //$("#idck").click(function(){
+      $("#id").focusout(function(){
+        if($("#id").val() == ''){
+          alert("아이디를 입력하세요.")
+          idck = 0;
+        } else{
+        //아이디 중복확인
+        $.ajax(
+          {
+            async: true,
+            type : "POST",
+            url : "/userIdCheck",
+            data : { id : $("#id").val() },
+            dataType : "json",
+            success : function(data) {
+                if (data == true) {
+                  var idRegExp = /^[a-zA-Z][a-zA-z0-9]{5,18}$/
+                  if (!idRegExp.test($("#id").val())) {
+                      alert("아이디 구성방법과 일치하지않습니다.");
+                      return false;
+                  }
+                  alert("사용가능한 아이디입니다.");
+                  idck = 1;                    
+                } else {
+                    alert("아이디가 존재합니다. 다른 아이디를 입력해주세요.");
+                    idck = 0;
+                }
+                
+              },
+            error : function(XMLHttpRequest, textStatus, errorThrown){ // 비동기 통신이 실패할경우 error 콜백으로 들어옵니다.
+                    alert("통신 실패.")
+            }
+          })
+        }
+        
+      });
+
+      //본인인증
+      $('#idfy').click(function(){
+        var IMP = window.IMP; // 생략 가능
+        IMP.init("imp54101575"); // 예: imp00000000
+
+        // IMP.certification(param, callback) 호출
+        IMP.certification({ // param
+            merchant_uid: "ORD20180131-0000011", // 주문 번호
+            m_redirect_url: "http://localhost:8090/index.html", // 모바일환경에서 popup:false(기본값) 인 경우 필수
+            popup: false // PC환경에서는 popup 파라메터가 무시되고 항상 true 로 적용됨
+        }, function (rsp) { // callback
+            if (rsp.success) {
+                console.log("success");
+                $.ajax({
+                    method: 'POST',
+                    url: '/certifications',
+                    dataType: 'json',
+                    data: { imp_uid: rsp.imp_uid },
+                    success : function(data){
+                      if( data == true ){
+                        $.ajax({
+                          method: 'get',
+                          url: '/phone',
+                          dataType: 'json',                         
+                          success : function(data){
+                            var phoneNumber = data.phone
+                            $.ajax({
+                              method: 'post',
+                              url: '/userPhoneCheck',
+                              dataType: 'json',
+                              data: { phone : phoneNumber },
+                              success : function(data){
+                                if( data == true ){
+                                  $('#phone').val(phoneNumber)
+                                  alert("본인인증에 성공했습니다.")
+                                  idfy = 1;
+                                } else{
+                                  alert("이미 가입된 전화번호입니다.")
+                                  idfy = 0;
+                                  return false;
+                                }
+                              }
+                            })
+                          }
+                        }) 
+                        
+                      } else {
+                        alert("본인인증에 실패했습니다.")
+                        idfy = 0;
+                      }
+                    }                    
+                });
+            }
+            else {
+                // 인증 실패 시 로직,
+                alert("인증에 실패하였습니다. 에러 내용: " + rsp.error_msg);
+            }
+            
+        });
+      })
+        
+
+      //비밀번호가 공백일때
+      $("#pw").focusout(function(){
+        var pw = $("#pw").val();
+        if(pw == ''){
+          pw_blank()
+        } else {
+          $("#pw_error").text("")
+          var pwRegExp = /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-]).{8,}$/;  //숫자+영문자+특수문자 조합으로 8자리 이상 사용
+          var hangulcheck = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/;
+          if (!pwRegExp.test($("#pw").val())) {
+            alert("비번 구성방법과 일치하지않습니다.");
+            pwsc = 0;
+            return false;
+          }
+          if(/(\w)\1\1\1/.test(pw)){
+              alert('같은 문자를 4번 이상 사용하실 수 없습니다.');
+              pwsc = 0;
+              return false;
+          }
+          if(pw.search(/\s/) != -1){
+            alert("비밀번호는 공백 없이 입력해주세요.");
+            pwsc = 0;
+            return false;
+          }
+          if(hangulcheck.test(pw)){
+            alert("비밀번호에 한글을 사용 할 수 없습니다.");
+            pwsc = 0;
+            return false;
+          }
+          pwsc = 1;                        
+        }
+      })
+
+      //비밀번호 재확인
+      $("#pwck").focusout(function(){
+        var pw = $("#pw").val();
+        var pwck = $("#pwck").val();
+        if( pw == pwck && pw !='' ){
+          $("#message_pwck").css("color", "green")
+          $("#message_pwck").css("font-size", "13px")
+          $("#message_pwck").text("비밀번호가 일치합니다.")
+        } else if( pwck == ''){
+          pwck_blank()
+        } else{
+          pwck_false()
+        }
+      })
+      //제출버튼을 눌렀을때 실행
+      $("#submit").click(function(){
+        var pw = $("#pw").val();
+        var pwck = $("#pwck").val();
+        if(pw == "" || pwck == "" || pw!=pwck || idck == 0 || idfy == 0 || pwsc == 0 ){
+          if( pw == "" ){
+            pw_blank()
+          }
+          if( pwck == ""){
+            pwck_blank()
+          }
+          if( idck == 0 ){
+            alert("사용 불가한 아이디 입니다.")
+          }
+          if( idfy == 0 ){
+            alert("본인인증을 해주세요.")
+          }
+          if( pwsc == 0 ){
+            $("#pw_error").css("color", "red")
+            $("#pw_error").css("font-size", "13px")
+            $("#pw_error").text("사용불가 비번.")
+          }
+          
+          return false;
+        }
+        /* history.pushState(null, null, 'http://localhost:8090/login');
+        window.onpopstate = function (event) {
+          history.go(1);
+        }; */
+      })
+    })
+    
+    //비밀번호 재확인을 실패했을때 띄우는 텍스트
+    function pwck_false(){
+      $("#message_pwck").css("color", "red")
+      $("#message_pwck").css("font-size", "13px")
+      $("#message_pwck").text("비밀번호가 일치하지 않습니다.")      
+    }
+    //비밀번호 입력창이 공백일때 띄우는 텍스트
+    function pw_blank(){
+      $("#pw_error").css("color", "red")
+      $("#pw_error").css("font-size", "13px")
+      $("#pw_error").text("비밀번호를 입력해 주세요.")
+    }
+    //비밀번호 재확인창이 공백일때 띄우는 텍스트
+    function pwck_blank(){
+      $("#message_pwck").css("color", "red")
+      $("#message_pwck").css("font-size", "13px")
+      $("#message_pwck").text("비밀번호를 입력해 주세요.")
+    }       
+    
+    
+  </script>
+
+
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+</body>
+</html>
